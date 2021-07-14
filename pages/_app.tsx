@@ -14,6 +14,7 @@ const GlobalStyles = createGlobalStyle`
     body {
         font-family: sans-serif;
         background-color: #D9E6f6;
+        /* background-image: url('/assets/images/social_wallpaper.jpg'); */
     }
 
     #__next {
