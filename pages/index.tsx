@@ -1,23 +1,36 @@
 import Box from '../src/components/Box'
 import MainGrid from '../src/components/MainGrid'
 import { AlurakutMenu, OrkutNostalgicIconSet, AlurakutProfileSidebarMenuDefault } from '../src/lib/AluraKutCommons';
-import { ProfileRelationsBoxWrapper } from '../src/components/ProfileRelations';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
+import ProfileRelationsBox from '../src/components/ProfileRealationsBox';
+import { ComunidadeRequest } from '../src/lib/RequestApi';
 
 export interface ProfileSideBarProps {
   githubUser?: string
 }
 
 interface Comunidade {
-  title: any
-  image: any
+  title: string
+  imageUrl: string
+  id?: string
+  slug?: string
 }
 
 export default function Home() {
 
-  const [comunidades, setComunidades] = useState<Array<Comunidade>>([
-    {title: 'Pinterest', image: 'https://mlabs-s3-blog.s3.amazonaws.com/wp-content/uploads/2020/11/09170042/O_que_%C3%A9_Pinterest_header.png'}
-  ]);
+  const [comunidades, setComunidades] = useState<Array<Comunidade>>([]);
+  //const [ seguidores, setSeguidores ] = useState<any[]>([]);
+  const [isButtonDisabled, setIsButtonDisabeld] = useState<boolean>(false);
+
+  useEffect(() => {
+    fetch('https://api.github.com/users/andysteel/followers')
+    .then(response => response.json())
+    .then(response => console.log(response))
+
+    fetch('/api/comunidades')
+    .then(response => response.json())
+    .then(datoResponse => setComunidades(datoResponse))
+  },[])
 
   function ProfileSidebar(propriedades: ProfileSideBarProps) {
 
@@ -48,16 +61,51 @@ export default function Home() {
       'andysteel'
     ]
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
+    setIsButtonDisabeld(true);
     event.preventDefault();
     const dadosDoForm = new FormData(event.target as HTMLFormElement);
 
-    const comunidade = {
-      title: dadosDoForm.get('title'),
-      image: dadosDoForm.get('image')
+    const comunidade: ComunidadeRequest = {
+      "title": dadosDoForm.get('title') as string,
+      "image_url": dadosDoForm.get('image') as string,
+      "community_slug": dadosDoForm.get('title') as string
     }
-    const comunidadesAtualizadas = [...comunidades, comunidade];
-    setComunidades(comunidadesAtualizadas);
+    const datoResponse = await fetch('/api/comunidades', {
+      method: 'POST',
+      body: JSON.stringify(comunidade)
+    })
+    .then(response => response.json());
+
+    if(datoResponse instanceof Array) {
+      let message = ''; 
+      datoResponse.forEach(error => {
+        const errorCode = error.attributes.code as string;
+        const errorField = error.attributes.details.field as string;
+        const errorValidation = error.attributes.details.code as string;
+        message = `${errorCode} ${errorField} ${errorValidation} \n`
+      })
+      alert(message);
+      setIsButtonDisabeld(false);
+      return;
+    }
+
+    if(datoResponse) {
+      console.log(JSON.stringify(datoResponse))
+      const comunidadeSalva = { 
+        id: datoResponse.id, 
+        title: datoResponse.attributes.title,
+        imageUrl: datoResponse.attributes.image_url,
+        slug: datoResponse.attributes.community_slug
+      }
+      const comunidadesAtualizadas = [...comunidades, comunidadeSalva];
+      setComunidades(comunidadesAtualizadas);
+      (document.querySelector('#title') as HTMLInputElement).value = "";
+      (document.querySelector('#image') as HTMLInputElement).value = "";
+    } else {
+      alert("Erro ao tentar salvar a comunidade.")
+    }
+    setIsButtonDisabeld(false);
   }
 
   return (
@@ -95,54 +143,16 @@ export default function Home() {
                 aria-label="Coloque uma URL para usarmos de capa ?" 
               />
             </div>
-            <button>
+            <button disabled={isButtonDisabled}>
               Criar comunidade
             </button>
           </form>
         </Box>
       </div>
       <div className="profileRelationsArea" style={{gridArea: 'profileRelationsArea'}}>
-      <ProfileRelationsBoxWrapper>
-        <h2 className="smallTitle">
-          Comunidades ({comunidades.length})
-        </h2>
-
-        <ul>
-          {comunidades.map((itemAtual, index) => {
-            if(index <= 5) {
-              return (
-                <li key={`${itemAtual?.title}${index}`}>
-                  <a href={`/users/${itemAtual?.title}`}>
-                    <img src={itemAtual?.image} />
-                    <span>{itemAtual?.title}</span>
-                  </a>
-                </li>
-              )
-            }
-          })
-          }
-        </ul>
-      </ProfileRelationsBoxWrapper>
-      <ProfileRelationsBoxWrapper>
-        <h2 className="smallTitle">
-          Pessoas da comunidade ({pessoasFavoritas.length})
-        </h2>
-
-        <ul>
-          {pessoasFavoritas.map((itemAtual, index) => {
-            if(index <= 5) {
-              return (
-                <li key={`${itemAtual}${index}`}>
-                  <a href={`/users/${itemAtual}`}>
-                    <img src={`https://github.com/${itemAtual}.png`} />
-                    <span>{itemAtual}</span>
-                  </a>
-                </li>
-              )
-            }
-          })}
-        </ul>
-      </ProfileRelationsBoxWrapper>
+        {/* <ProfileRelationsBox titulo="Seguidores" items={seguidores}></ProfileRelationsBox> */}
+        <ProfileRelationsBox titulo="Comunidades" items={comunidades}></ProfileRelationsBox>
+        <ProfileRelationsBox titulo="Pessoas da comunidade" items={pessoasFavoritas}></ProfileRelationsBox>  
       </div>
     </MainGrid>
     </>
