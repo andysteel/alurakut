@@ -19,7 +19,7 @@ interface Comunidade {
 export default function Home() {
 
   const [comunidades, setComunidades] = useState<Array<Comunidade>>([]);
-  const [ seguidores, setSeguidores ] = useState<any[]>([]);
+  //const [ seguidores, setSeguidores ] = useState<any[]>([]);
   const [isButtonDisabled, setIsButtonDisabeld] = useState<boolean>(false);
 
   useEffect(() => {
