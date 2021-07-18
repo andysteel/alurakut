@@ -4,28 +4,57 @@ import { AlurakutMenu, OrkutNostalgicIconSet, AlurakutProfileSidebarMenuDefault 
 import { FormEvent, useEffect, useState } from 'react';
 import ProfileRelationsBox from '../src/components/ProfileRealationsBox';
 import { ComunidadeRequest } from '../src/lib/RequestApi';
+import { GetServerSideProps, GetServerSidePropsContext } from 'next';
+import nookies from 'nookies';
+import jwt from 'jsonwebtoken';
 
 export interface ProfileSideBarProps {
   githubUser?: string
 }
 
 interface Comunidade {
-  title: string
-  imageUrl: string
-  id?: string
-  slug?: string
+  title: string;
+  imageUrl: string;
+  id?: string;
+  slug?: string;
 }
 
-export default function Home() {
+interface Seguidor {
+  title: string;
+  imageUrl: string;
+}
+
+interface SeguidorGithub {
+  login: string;
+  avatar_url: string;
+}
+
+export default function Home({ githubUser }: ProfileSideBarProps ) {
 
   const [comunidades, setComunidades] = useState<Array<Comunidade>>([]);
-  //const [ seguidores, setSeguidores ] = useState<any[]>([]);
+  const [ seguidores, setSeguidores ] = useState<Seguidor[]>([]);
+  const [ pessoasFavoritas, setPessoasFavoritas ] = useState<Seguidor[]>([]);
   const [isButtonDisabled, setIsButtonDisabeld] = useState<boolean>(false);
 
   useEffect(() => {
-    fetch('https://api.github.com/users/andysteel/followers')
+    fetch(`https://api.github.com/users/${githubUser}/followers`)
     .then(response => response.json())
-    .then(response => console.log(response))
+    .then(response => {
+      response.forEach((user: SeguidorGithub ) => { 
+        seguidores.push({title: user.login, imageUrl: user.avatar_url})
+    
+      })
+      setSeguidores([...seguidores])
+    })
+
+    fetch(`https://api.github.com/users/${githubUser}/following`)
+    .then(response => response.json())
+    .then(response => {
+      response.forEach((user: SeguidorGithub ) => {
+        pessoasFavoritas.push({title: user.login, imageUrl: user.avatar_url})
+      })
+      setPessoasFavoritas([...pessoasFavoritas])
+    })
 
     fetch('/api/comunidades')
     .then(response => response.json())
@@ -51,16 +80,6 @@ export default function Home() {
     )
   }
 
-    const pessoasFavoritas = [
-      'juunegreiros',
-      'omariosouto',
-      'peas',
-      'rafaballerini',
-      'marcobrunodev',
-      'felipefialho',
-      'andysteel'
-    ]
-
   const handleSubmit = async (event: FormEvent) => {
     setIsButtonDisabeld(true);
     event.preventDefault();
@@ -70,6 +89,11 @@ export default function Home() {
       "title": dadosDoForm.get('title') as string,
       "image_url": dadosDoForm.get('image') as string,
       "community_slug": dadosDoForm.get('title') as string
+    }
+    if(comunidade.title.length === 0 || comunidade.image_url.length === 0) {
+      alert("Preencha os dois Campos para criar uma comunidade.");
+      setIsButtonDisabeld(false);
+      return;
     }
     const datoResponse = await fetch('/api/comunidades', {
       method: 'POST',
@@ -91,7 +115,6 @@ export default function Home() {
     }
 
     if(datoResponse) {
-      console.log(JSON.stringify(datoResponse))
       const comunidadeSalva = { 
         id: datoResponse.id, 
         title: datoResponse.attributes.title,
@@ -110,10 +133,10 @@ export default function Home() {
 
   return (
     <>
-    <AlurakutMenu githubUser={'andysteel'}/>
+    <AlurakutMenu githubUser={githubUser}/>
     <MainGrid>
       <div className="profileArea" style={{gridArea: 'profileArea'}}>
-      <ProfileSidebar githubUser={'andysteel'} />
+      <ProfileSidebar githubUser={githubUser} />
       </div>
       <div className="welcomeArea" style={{gridArea: 'welcomeArea'}}>
         <Box>
@@ -150,7 +173,7 @@ export default function Home() {
         </Box>
       </div>
       <div className="profileRelationsArea" style={{gridArea: 'profileRelationsArea'}}>
-        {/* <ProfileRelationsBox titulo="Seguidores" items={seguidores}></ProfileRelationsBox> */}
+        <ProfileRelationsBox titulo="Seguidores" items={seguidores}></ProfileRelationsBox>
         <ProfileRelationsBox titulo="Comunidades" items={comunidades}></ProfileRelationsBox>
         <ProfileRelationsBox titulo="Pessoas da comunidade" items={pessoasFavoritas}></ProfileRelationsBox>  
       </div>
@@ -158,3 +181,35 @@ export default function Home() {
     </>
   )
 }
+
+export const getServerSideProps: GetServerSideProps = async (context: GetServerSidePropsContext) => {
+
+  const token = nookies.get(context).USER_TOKEN;
+
+  const { isAuthenticated } = await fetch(`${process.env.REACT_APP_URL_AUTH}/api/auth`, {
+    headers: {
+      Authorization: token
+    },
+    method: 'POST'
+  })
+  .then(response => response.json());
+
+  if(!isAuthenticated) {
+
+    nookies.destroy(context,'USER_TOKEN');
+
+    return {
+      redirect: {
+        destination: '/login?auth=false',
+        permanent: false,
+      },
+    }
+  }
+
+  const { githubUser } = JSON.parse(JSON.stringify(jwt.decode(token) as string));
+  return {
+    props: {
+      githubUser
+    },
+  };
+};
