@@ -2,10 +2,11 @@ import React from 'react';
 import styled, { css } from 'styled-components';
 import NextLink from 'next/link';
 import { ProfileSideBarProps } from '../../pages';
+import nookies from 'nookies';
+import { NextRouter, useRouter } from 'next/router';
 
 const BASE_URL = 'http://alurakut.vercel.app/';
 const v = '1';
-
 
 function Link({ href, children, ...props }: any) {
   return (
@@ -17,11 +18,17 @@ function Link({ href, children, ...props }: any) {
   )
 }
 
+const logout = (router: NextRouter) => {
+  nookies.destroy(null,'USER_TOKEN');
+  router.push('/login');
+}
+
 // ================================================================================================================
 // Menu
 // ================================================================================================================
 export function AlurakutMenu({ githubUser }: ProfileSideBarProps) {
   const [isMenuOpen, setMenuState] = React.useState(false);
+  const router = useRouter();
   return (
     <AlurakutMenu.Wrapper isMenuOpen={isMenuOpen}>
       <div className="container">
@@ -36,7 +43,7 @@ export function AlurakutMenu({ githubUser }: ProfileSideBarProps) {
         </nav>
 
         <nav>
-          <a href={`/logout`}>
+          <a href={`/login`} onClick={() => {logout(router)}}>
             Sair
           </a>
           <div>
@@ -189,6 +196,7 @@ function AlurakutMenuProfileSidebar({ githubUser }: ProfileSideBarProps) {
 // AlurakutProfileSidebarMenuDefault
 // ================================================================================================================
 export function AlurakutProfileSidebarMenuDefault() {
+  const router = useRouter();
   return (
     <AlurakutProfileSidebarMenuDefault.Wrapper>
       <nav>
@@ -215,7 +223,7 @@ export function AlurakutProfileSidebarMenuDefault() {
           <img src={`${BASE_URL}/icons/plus.svg`} />
             GitHub Trends
           </a>
-        <a href="/logout">
+        <a href="/login" onClick={() => {logout(router)}}>
           <img src={`${BASE_URL}//icons/logout.svg`} />
             Sair
           </a>
